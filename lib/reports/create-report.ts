@@ -32,6 +32,23 @@ export async function createReport(
   if (!cityA) throw new CityNotFoundError(input.cityAId);
   if (!cityB) throw new CityNotFoundError(input.cityBId);
 
+  // Reuse a recent PENDING_PAYMENT report for the same selection to avoid orphan accumulation.
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const existing = await prisma.report.findFirst({
+    where: {
+      cityAId: input.cityAId,
+      cityBId: input.cityBId,
+      purpose: input.purpose,
+      buyerEmail: input.buyerEmail ?? null,
+      status: "PENDING_PAYMENT",
+      createdAt: { gte: cutoff },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, status: true },
+  });
+
+  if (existing) return { reportId: existing.id, status: existing.status };
+
   const report = await prisma.report.create({
     data: {
       cityAId: input.cityAId,

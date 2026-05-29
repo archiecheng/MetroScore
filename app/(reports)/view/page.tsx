@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { mockReport } from "@/lib/reports/mock-report";
+import { getReportByToken } from "@/lib/reports/get-report-by-token";
+import type { CityComparisonReportDTO } from "@/lib/reports/report-dto";
 import { SCORE_METRIC_LABELS } from "@/lib/scoring/types";
 import ReportHeader from "@/components/reports/report-header";
 import ScoreCard from "@/components/reports/score-card";
@@ -14,14 +17,59 @@ import PrintButton from "@/components/reports/print-button";
 import { PageViewTracker } from "@/components/analytics/page-view-tracker";
 import { ANALYTICS_EVENTS } from "@/lib/analytics";
 
-export const metadata: Metadata = {
-  title: "Sample Report: San Jose, CA vs Colorado Springs, CO",
-  description:
-    "See a full MetroScore city comparison report — scores, charts, risk alerts, and recommendations.",
-};
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}): Promise<Metadata> {
+  const { token } = await searchParams;
+  if (!token) {
+    return {
+      title: "Sample Report: San Jose, CA vs Colorado Springs, CO",
+      description:
+        "See a full MetroScore city comparison report — scores, charts, risk alerts, and recommendations.",
+    };
+  }
+  return {
+    title: "Your MetroScore Report",
+    description: "Your purchased MetroScore city comparison report.",
+  };
+}
 
-export default async function ViewReportPage() {
-  const report = mockReport;
+export default async function ViewReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const { token } = await searchParams;
+
+  let report: CityComparisonReportDTO;
+
+  if (token) {
+    const result = await getReportByToken(token);
+    if (!result.ok) {
+      if (result.reason === "not_found") notFound();
+      // Payment not completed yet — show a holding page.
+      return (
+        <div className="flex min-h-screen items-center justify-center px-6">
+          <div className="text-center max-w-sm">
+            <h1 className="text-xl font-bold text-foreground mb-2">Payment Not Completed</h1>
+            <p className="text-muted-foreground text-sm mb-6">
+              This report link is valid but payment hasn&apos;t been confirmed yet. Please check
+              your email or try again in a few minutes.
+            </p>
+            <Link href="/compare" className="text-primary text-sm font-medium hover:underline">
+              ← Back to Compare
+            </Link>
+          </div>
+        </div>
+      );
+    }
+    report = result.dto;
+  } else {
+    report = mockReport;
+  }
+
   const { cityA, cityB, scores, recommendation, charts, risks, opportunities, sources } = report;
   const nameA = cityA.name;
   const nameB = cityB.name;

@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { getLatestMetrics } from "@/lib/data/metrics";
+import { extractScoringInputs } from "@/lib/scoring/metrics-calculator";
+import { calculateCityScore } from "@/lib/scoring/calculate-city-score";
+import type { CityScore } from "@/lib/scoring/types";
+import type { ReportPurpose } from "@/lib/reports/report-dto";
+import CheckoutButton from "@/components/reports/checkout-button";
 
 export const metadata: Metadata = {
   title: "Report Preview",
@@ -12,6 +20,29 @@ export default async function PreviewReportPage({
   params: Promise<{ reportId: string }>;
 }) {
   const { reportId } = await params;
+
+  const report = await prisma.report.findUnique({
+    where: { id: reportId },
+    select: {
+      purpose: true,
+      cityA: { select: { id: true, name: true, state: true } },
+      cityB: { select: { id: true, name: true, state: true } },
+    },
+  });
+
+  if (!report) notFound();
+
+  const nameA = `${report.cityA.name}, ${report.cityA.state}`;
+  const nameB = `${report.cityB.name}, ${report.cityB.state}`;
+
+  // Compute real scores so the preview reflects the user's actual cities.
+  const [latestA, latestB] = await Promise.all([
+    getLatestMetrics(report.cityA.id),
+    getLatestMetrics(report.cityB.id),
+  ]);
+  const purpose = report.purpose as ReportPurpose;
+  const scoreA = calculateCityScore(extractScoringInputs(latestA), purpose);
+  const scoreB = calculateCityScore(extractScoringInputs(latestB), purpose);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -30,12 +61,12 @@ export default async function PreviewReportPage({
               Preview — Purchase to unlock full report
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Austin, TX vs Nashville, TN
+              {nameA} vs {nameB}
             </h1>
             <p className="text-muted-foreground">Report ID: {reportId}</p>
           </div>
 
-          <ReportPreviewContent />
+          <ReportPreviewContent nameA={nameA} nameB={nameB} scoreA={scoreA} scoreB={scoreB} />
 
           <div className="mt-12 bg-primary rounded-2xl p-8 text-center">
             <h2 className="text-2xl font-bold text-primary-foreground mb-3">
@@ -44,12 +75,7 @@ export default async function PreviewReportPage({
             <p className="text-primary-foreground/80 mb-6">
               Get all 6 scoring dimensions, full data tables, charts, and a downloadable PDF.
             </p>
-            <Link
-              href="/compare"
-              className="inline-block bg-white text-primary px-8 py-3.5 rounded-lg font-semibold hover:bg-white/90 transition-colors"
-            >
-              Purchase Full Report — $19
-            </Link>
+            <CheckoutButton reportId={reportId} />
           </div>
         </div>
       </main>
@@ -57,29 +83,41 @@ export default async function PreviewReportPage({
   );
 }
 
-function ReportPreviewContent() {
+const PREVIEW_ROWS: { label: string; key: keyof Omit<CityScore, "overall"> }[] = [
+  { label: "Housing Affordability", key: "affordability" },
+  { label: "Job & Income",          key: "jobIncome" },
+  { label: "Population Growth",     key: "populationMomentum" },
+];
+
+function ReportPreviewContent({
+  nameA,
+  nameB,
+  scoreA,
+  scoreB,
+}: {
+  nameA: string;
+  nameB: string;
+  scoreA: CityScore;
+  scoreB: CityScore;
+}) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <ScoreCard city="Austin, TX" score={74} />
+        <ScoreCard city={nameA} score={scoreA.overall} />
         <div className="flex items-center justify-center">
           <span className="text-2xl font-bold text-muted-foreground">vs</span>
         </div>
-        <ScoreCard city="Nashville, TN" score={71} />
+        <ScoreCard city={nameB} score={scoreB.overall} />
       </div>
 
       <div className="bg-card border border-border rounded-xl p-6">
         <h2 className="font-semibold text-foreground mb-4">Score Overview</h2>
         <div className="space-y-3">
-          {[
-            { label: "Housing Affordability", a: 58, b: 65 },
-            { label: "Income & Rent", a: 72, b: 68 },
-            { label: "Population Growth", a: 85, b: 80 },
-          ].map((row) => (
-            <div key={row.label} className="grid grid-cols-3 items-center gap-4">
-              <div className="text-right text-sm font-medium">{row.a}</div>
+          {PREVIEW_ROWS.map((row) => (
+            <div key={row.key} className="grid grid-cols-3 items-center gap-4">
+              <div className="text-right text-sm font-medium">{scoreA[row.key]}</div>
               <div className="text-center text-xs text-muted-foreground">{row.label}</div>
-              <div className="text-left text-sm font-medium">{row.b}</div>
+              <div className="text-left text-sm font-medium">{scoreB[row.key]}</div>
             </div>
           ))}
           <div className="border-t border-border pt-3 text-center text-sm text-muted-foreground italic">

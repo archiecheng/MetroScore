@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
 import { z } from "zod";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { MOCK_CITIES, PURPOSE_OPTIONS } from "@/lib/data/mock-cities";
 import { ANALYTICS_EVENTS } from "@/lib/analytics";
 
@@ -53,14 +53,17 @@ export default function CityCompareForm({
     email: "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   }
 
-  function handleSubmit(e: { preventDefault(): void }) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
+    setSubmitError(null);
 
     const emailValidation = showEmail
       ? z.email("Please enter a valid email")
@@ -84,17 +87,54 @@ export default function CityCompareForm({
       city_b: form.cityB,
       purpose: form.purpose,
     });
-    posthog?.capture(ANALYTICS_EVENTS.CHECKOUT_STARTED, {
-      city_a: form.cityA,
-      city_b: form.cityB,
-    });
 
-    const params = new URLSearchParams({
-      cityA: form.cityA,
-      cityB: form.cityB,
-      purpose: form.purpose,
-    });
-    router.push(`/view?${params.toString()}`);
+    // Landing page (no email): funnel user to the full compare+checkout form.
+    if (!showEmail) {
+      const params = new URLSearchParams({
+        cityA: form.cityA,
+        cityB: form.cityB,
+        purpose: form.purpose,
+      });
+      router.push(`/compare?${params.toString()}`);
+      return;
+    }
+
+    // Compare page: create report → get Stripe URL → redirect.
+    setSubmitting(true);
+    try {
+      // Resolve city slugs → DB IDs.
+      const citiesRes = await fetch("/api/v1/cities");
+      if (!citiesRes.ok) throw new Error("Failed to load cities");
+      const citiesJson = await citiesRes.json();
+      const cityMap: Record<string, string> = {};
+      for (const c of citiesJson.data.cities as { id: string; slug: string }[]) {
+        cityMap[c.slug] = c.id;
+      }
+      const cityAId = cityMap[form.cityA];
+      const cityBId = cityMap[form.cityB];
+      if (!cityAId || !cityBId) throw new Error("City not found");
+
+      // Create the report record.
+      const reportRes = await fetch("/api/v1/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cityAId,
+          cityBId,
+          purpose: form.purpose,
+          buyerEmail: form.email || undefined,
+        }),
+      });
+      if (!reportRes.ok) throw new Error("Failed to create report");
+      const reportJson = await reportRes.json();
+      const { reportId } = reportJson.data as { reportId: string };
+
+      // Always show the preview page first; the CheckoutButton there handles Stripe.
+      router.push(`/preview/${reportId}`);
+    } catch {
+      setSubmitError("Something went wrong. Please try again.");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -191,10 +231,16 @@ export default function CityCompareForm({
 
       <button
         type="submit"
-        className="w-full bg-primary text-primary-foreground py-3.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors text-sm"
+        disabled={submitting}
+        className="w-full bg-primary text-primary-foreground py-3.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        {submitLabel}
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        {submitting ? "Processing…" : submitLabel}
       </button>
+
+      {submitError && (
+        <p className="text-xs text-red-600 text-center">{submitError}</p>
+      )}
 
       <p className="text-center text-xs text-muted-foreground">
         One-time payment of $19 · Instant delivery · No subscription
