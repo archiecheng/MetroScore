@@ -12,7 +12,6 @@ export type CityScore = {
 
 export type ScoreMetricKey = keyof CityScore;
 
-/** Human-readable labels for each score metric, used by charts and report UI. */
 export const SCORE_METRIC_LABELS: Record<ScoreMetricKey, string> = {
   overall: "Overall Score",
   affordability: "Affordability",
@@ -25,3 +24,26 @@ export const SCORE_METRIC_LABELS: Record<ScoreMetricKey, string> = {
 
 export const SCORE_MIN = 1;
 export const SCORE_MAX = 10;
+
+/**
+ * Normalized inputs derived from raw CityMetric fields.
+ * All nulls mean data is unavailable for that metric.
+ */
+export type RawMetricsInput = {
+  /** medianHomeValue / medianHouseholdIncome */
+  pti: number | null;
+  /** (medianRent * 12) / medianHomeValue  — expressed as a decimal, e.g. 0.04 = 4% */
+  rentYieldDecimal: number | null;
+  /** populationGrowthRate in % per year, e.g. 2.5 */
+  popGrowthRate: number | null;
+  /** homePriceGrowthRate in % per year */
+  hpGrowthRate: number | null;
+  /** Raw medianHouseholdIncome in USD */
+  medianIncome: number | null;
+  /** Raw unemploymentRate in % */
+  unemploymentRate: number | null;
+  /** Raw medianHomeValue in USD */
+  medianHomeValue: number | null;
+  /** Raw medianRent in USD/month */
+  medianRent: number | null;
+};
