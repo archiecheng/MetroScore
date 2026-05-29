@@ -1,14 +1,6 @@
-// TODO: implement city scoring logic
-export type CityScores = {
-  housing: number;
-  income: number;
-  population: number;
-  jobs: number;
-  climate: number;
-  quality: number;
-  overall: number;
-};
+export type { CityScore, ScoreMetricKey } from "./types";
+export { SCORE_METRIC_LABELS, SCORE_MIN, SCORE_MAX } from "./types";
 
-export function computeMetroScore(_cityData: unknown): CityScores {
+export function computeMetroScore(_cityData: unknown): never {
   throw new Error("Not implemented");
 }
