@@ -39,3 +39,20 @@ export async function getCitiesBySlugs(slugs: string[]): Promise<City[]> {
     where: { slug: { in: slugs } },
   });
 }
+
+/** Full-text search across city name and state. Returns at most 50 results. */
+export async function searchCities(query?: string): Promise<City[]> {
+  return prisma.city.findMany({
+    where: query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { state: { equals: query.toUpperCase() } },
+            { slug: { contains: query.toLowerCase() } },
+          ],
+        }
+      : undefined,
+    orderBy: [{ state: "asc" }, { name: "asc" }],
+    take: 50,
+  });
+}

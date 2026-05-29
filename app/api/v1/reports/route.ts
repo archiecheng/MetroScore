@@ -1,15 +1,28 @@
-import { NextRequest } from "next/server";
+import { createReport, CityNotFoundError } from "@/lib/reports/create-report";
+import { createReportApiSchema } from "@/lib/validations/report";
+import { ok, err } from "@/lib/api/response";
 
-export async function POST(request: NextRequest) {
-  // TODO: validate body, create report record, return reportId
-  const body = await request.json();
-  return Response.json({ reportId: null, body }, { status: 501 });
-}
+export async function POST(request: Request) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return err("Invalid JSON body", 400);
+  }
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const reportId = searchParams.get("id");
+  const parsed = createReportApiSchema.safeParse(body);
+  if (!parsed.success) {
+    return err("Validation failed", 400, "VALIDATION_ERROR", parsed.error.issues);
+  }
 
-  // TODO: fetch report from database
-  return Response.json({ report: null, reportId }, { status: 501 });
+  try {
+    const result = await createReport(parsed.data);
+    return ok(result, 201);
+  } catch (e) {
+    if (e instanceof CityNotFoundError) {
+      return err(e.message, 422, "CITY_NOT_FOUND");
+    }
+    console.error("[POST /api/v1/reports]", e);
+    return err("Internal server error", 500);
+  }
 }
