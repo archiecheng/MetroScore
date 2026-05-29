@@ -11,6 +11,8 @@ import OpportunitySection from "@/components/reports/opportunity-section";
 import SourceAttribution from "@/components/reports/source-attribution";
 import Disclaimer from "@/components/reports/disclaimer";
 import PrintButton from "@/components/reports/print-button";
+import { PageViewTracker } from "@/components/analytics/page-view-tracker";
+import { ANALYTICS_EVENTS } from "@/lib/analytics";
 
 export const metadata: Metadata = {
   title: "Sample Report: San Jose, CA vs Colorado Springs, CO",
@@ -61,6 +63,10 @@ export default async function ViewReportPage() {
       </header>
 
       <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6">
+        <PageViewTracker
+          event={ANALYTICS_EVENTS.REPORT_ACCESSED}
+          properties={{ report_id: report.reportId, purpose: report.purpose }}
+        />
         <div className="max-w-4xl mx-auto space-y-10">
           {/* Header: title, overall scores, purpose, date */}
           <ReportHeader

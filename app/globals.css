@@ -87,28 +87,59 @@
 
 @media print {
   @page {
-    margin: 1.2cm 1.5cm;
+    margin: 1.4cm 1.6cm;
     size: A4;
   }
 
   body {
-    font-size: 11pt;
-    color: #000;
-    background: #fff;
+    font-size: 10.5pt;
+    color: #000 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  /* Avoid breaking cards and chart sections across pages */
-  .print\:break-inside-avoid {
+  /* Hide interactive / nav chrome */
+  header,
+  footer,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Avoid breaking key blocks mid-page */
+  .print\:break-inside-avoid,
+  section,
+  .rounded-xl {
     break-inside: avoid;
   }
 
-  /* Charts need explicit heights to render in print */
-  svg {
-    max-width: 100%;
+  /* Give sections breathing room at page boundaries */
+  section {
+    break-before: auto;
+    margin-top: 12pt;
   }
 
-  /* Keep links legible in print */
+  /* Charts: keep SVG within page width */
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Don't append URL after links — it clutters the report */
   a[href]::after {
-    content: none;
+    content: none !important;
+  }
+
+  /* Preserve colored score bars in print */
+  [style*="background"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Disclaimer and sources must always be visible */
+  .print-always-visible {
+    display: block !important;
+    break-inside: avoid;
   }
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyStripeWebhook } from "@/lib/payments/stripe-service";
 import { fulfillReport } from "@/lib/reports/fulfill-report";
 import { sendReportReadyEmail } from "@/lib/email/resend-service";
+import { captureException } from "@/lib/errors/sentry";
 import type Stripe from "stripe";
 
 // Raw body must be preserved for Stripe signature verification.
@@ -84,10 +85,12 @@ export async function POST(request: Request) {
           // Payment succeeded — don't retry the whole webhook over an email failure.
           // Report stays PAID; email can be resent manually.
           console.error("[webhook] email delivery failed for report", reportId, emailErr);
+          captureException(emailErr, { reportId, context: "email_delivery" });
         }
       }
     } catch (fulfillErr) {
       console.error("[webhook] fulfillment failed for report", reportId, fulfillErr);
+      captureException(fulfillErr, { reportId, context: "report_fulfillment" });
       // Return 500 so Stripe retries the webhook
       return Response.json({ received: false }, { status: 500 });
     }

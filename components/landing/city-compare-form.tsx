@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePostHog } from "posthog-js/react";
 import { z } from "zod";
 import { ChevronDown } from "lucide-react";
 import { MOCK_CITIES, PURPOSE_OPTIONS } from "@/lib/data/mock-cities";
+import { ANALYTICS_EVENTS } from "@/lib/analytics";
 
 const formSchema = z
   .object({
@@ -43,6 +45,7 @@ export default function CityCompareForm({
   submitLabel = "Generate My City Comparison",
 }: CityCompareFormProps) {
   const router = useRouter();
+  const posthog = usePostHog();
   const [form, setForm] = useState<FormState>({
     cityA: defaultCityA,
     cityB: defaultCityB,
@@ -75,6 +78,16 @@ export default function CityCompareForm({
       setErrors(fieldErrors);
       return;
     }
+
+    posthog?.capture(ANALYTICS_EVENTS.CITY_PAIR_SELECTED, {
+      city_a: form.cityA,
+      city_b: form.cityB,
+      purpose: form.purpose,
+    });
+    posthog?.capture(ANALYTICS_EVENTS.CHECKOUT_STARTED, {
+      city_a: form.cityA,
+      city_b: form.cityB,
+    });
 
     const params = new URLSearchParams({
       cityA: form.cityA,
