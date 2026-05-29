@@ -84,3 +84,31 @@
     color: hsl(var(--foreground));
   }
 }
+
+@media print {
+  @page {
+    margin: 1.2cm 1.5cm;
+    size: A4;
+  }
+
+  body {
+    font-size: 11pt;
+    color: #000;
+    background: #fff;
+  }
+
+  /* Avoid breaking cards and chart sections across pages */
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  /* Charts need explicit heights to render in print */
+  svg {
+    max-width: 100%;
+  }
+
+  /* Keep links legible in print */
+  a[href]::after {
+    content: none;
+  }
+}

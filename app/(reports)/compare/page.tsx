@@ -1,109 +1,84 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import CityCompareForm from "@/components/landing/city-compare-form";
 
 export const metadata: Metadata = {
   title: "Compare Cities",
   description: "Pick two U.S. cities and get your MetroScore comparison report.",
 };
 
-export default function ComparePage() {
+export default async function ComparePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cityA?: string; cityB?: string; purpose?: string }>;
+}) {
+  const { cityA, cityB, purpose } = await searchParams;
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-primary tracking-tight">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold text-primary tracking-tight">
             MetroScore
+          </Link>
+          <Link
+            href="/pricing"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Pricing
           </Link>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center py-24 px-6">
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold text-foreground mb-3">Compare Two Cities</h1>
-            <p className="text-muted-foreground">
-              Enter any two U.S. cities to generate your comparison report.
+      <main className="flex-1 flex items-start sm:items-center justify-center py-12 sm:py-24 px-4 sm:px-6">
+        <div className="w-full max-w-md">
+          {/* Heading */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+              Compare Two Cities
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Choose two U.S. cities and your purpose to generate a comparison report.
             </p>
           </div>
 
-          <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-            <CityCompareForm />
+          {/* Form card */}
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
+            <CityCompareForm
+              showEmail
+              defaultCityA={cityA ?? ""}
+              defaultCityB={cityB ?? ""}
+              defaultPurpose={purpose ?? ""}
+              submitLabel="Continue to Checkout — $19"
+            />
+          </div>
+
+          {/* Trust signals */}
+          <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+            {[
+              { icon: "🔒", label: "Secure checkout" },
+              { icon: "⚡", label: "Instant delivery" },
+              { icon: "📄", label: "Printable report" },
+            ].map((t) => (
+              <div key={t.label} className="text-xs text-muted-foreground space-y-1">
+                <div className="text-base">{t.icon}</div>
+                <div>{t.label}</div>
+              </div>
+            ))}
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-6">
-            One-time payment of $19. Instant delivery. Secure checkout via Stripe.
+            Want to preview first?{" "}
+            <Link href="/view" className="text-primary hover:underline font-medium">
+              View sample report →
+            </Link>
           </p>
         </div>
       </main>
+
+      <footer className="border-t border-border py-5 px-6 text-center text-xs text-muted-foreground">
+        © {new Date().getFullYear()} MetroScore · For educational use only · Not financial advice
+      </footer>
     </div>
-  );
-}
-
-function CityCompareForm() {
-  return (
-    <form className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <label
-            htmlFor="city1"
-            className="block text-sm font-medium text-foreground mb-1.5"
-          >
-            City 1
-          </label>
-          <input
-            id="city1"
-            type="text"
-            placeholder="e.g. Austin, TX"
-            className="w-full border border-input rounded-lg px-4 py-3 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
-          />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">vs</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        <div>
-          <label
-            htmlFor="city2"
-            className="block text-sm font-medium text-foreground mb-1.5"
-          >
-            City 2
-          </label>
-          <input
-            id="city2"
-            type="text"
-            placeholder="e.g. Nashville, TN"
-            className="w-full border border-input rounded-lg px-4 py-3 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-foreground mb-1.5"
-        >
-          Email address
-        </label>
-        <input
-          id="email"
-          type="email"
-          placeholder="you@example.com"
-          className="w-full border border-input rounded-lg px-4 py-3 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
-        />
-        <p className="text-xs text-muted-foreground mt-1.5">
-          We&apos;ll send your report here after payment.
-        </p>
-      </div>
-
-      <button
-        type="submit"
-        className="w-full bg-primary text-primary-foreground py-3.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-      >
-        Continue to Checkout — $19
-      </button>
-    </form>
   );
 }

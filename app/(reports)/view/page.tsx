@@ -1,151 +1,196 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { mockReport } from "@/lib/reports/mock-report";
+import { SCORE_METRIC_LABELS } from "@/lib/scoring/types";
+import ReportHeader from "@/components/reports/report-header";
+import ScoreCard from "@/components/reports/score-card";
+import ReportRadarChart from "@/components/reports/radar-chart";
+import TrendChart from "@/components/reports/trend-chart";
+import RiskAlerts from "@/components/reports/risk-alerts";
+import OpportunitySection from "@/components/reports/opportunity-section";
+import SourceAttribution from "@/components/reports/source-attribution";
+import Disclaimer from "@/components/reports/disclaimer";
+import PrintButton from "@/components/reports/print-button";
 
 export const metadata: Metadata = {
-  title: "View Report",
-  description: "Your full MetroScore city comparison report.",
+  title: "Sample Report: San Jose, CA vs Colorado Springs, CO",
+  description:
+    "See a full MetroScore city comparison report — scores, charts, risk alerts, and recommendations.",
 };
 
-export default async function ViewReportPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const { token } = await searchParams;
+export default async function ViewReportPage() {
+  const report = mockReport;
+  const { cityA, cityB, scores, recommendation, charts, risks, opportunities, sources } = report;
+  const nameA = cityA.name;
+  const nameB = cityB.name;
 
-  if (!token) {
-    return <AccessDenied />;
-  }
+  const scoreMetrics: Array<{ key: keyof typeof scores.cityA; isRisk?: boolean }> = [
+    { key: "affordability" },
+    { key: "homePriceMomentum" },
+    { key: "populationMomentum" },
+    { key: "rentYield" },
+    { key: "jobIncome" },
+    { key: "risk", isRisk: true },
+  ];
+
+  const winnerName =
+    recommendation.winner === "cityA"
+      ? `${nameA}, ${cityA.state}`
+      : recommendation.winner === "cityB"
+        ? `${nameB}, ${cityB.state}`
+        : "Mixed — context-dependent";
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-primary tracking-tight">
+    <div className="flex flex-col min-h-screen bg-background print:bg-white">
+      {/* Sticky nav — hidden in print */}
+      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 print:hidden">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold text-primary tracking-tight">
             MetroScore
           </Link>
-          <button className="border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-secondary transition-colors">
-            Download PDF
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/compare"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Get Your Report
+            </Link>
+            <PrintButton />
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 py-16 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-10">
-            <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 text-sm font-medium px-3 py-1 rounded-full mb-4">
-              ✓ Full Report Unlocked
-            </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Austin, TX vs Nashville, TN
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Generated on {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-            </p>
-          </div>
+      <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto space-y-10">
+          {/* Header: title, overall scores, purpose, date */}
+          <ReportHeader
+            cityA={cityA}
+            cityB={cityB}
+            purpose={report.purpose}
+            generatedAt={report.generatedAt}
+            overallA={scores.cityA.overall}
+            overallB={scores.cityB.overall}
+          />
 
-          <FullReportContent />
+          <Divider />
+
+          {/* Recommendation */}
+          <section>
+            <h2 className="text-base font-semibold text-foreground mb-4">Recommendation</h2>
+            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Recommended for {report.purpose.replace(/_/g, " ")}
+                </span>
+                <WinnerBadge winner={recommendation.winner} name={winnerName} />
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">{recommendation.summary}</p>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                  Key Takeaways
+                </p>
+                <ul className="space-y-2">
+                  {recommendation.keyTakeaways.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-primary mt-0.5 flex-shrink-0">→</span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <Divider />
+
+          {/* Score cards grid */}
+          <section>
+            <h2 className="text-base font-semibold text-foreground mb-4">Score Breakdown</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scoreMetrics.map(({ key, isRisk }) => (
+                <ScoreCard
+                  key={key}
+                  metric={SCORE_METRIC_LABELS[key]}
+                  cityAName={nameA}
+                  cityBName={nameB}
+                  scoreA={scores.cityA[key]}
+                  scoreB={scores.cityB[key]}
+                  isRisk={isRisk}
+                />
+              ))}
+            </div>
+          </section>
+
+          <Divider />
+
+          {/* Charts */}
+          <section className="space-y-6">
+            <h2 className="text-base font-semibold text-foreground">Charts</h2>
+            <ReportRadarChart data={charts.radar} cityAName={nameA} cityBName={nameB} />
+            <TrendChart
+              data={charts.homePriceTrend}
+              title="Median Home Price Trend"
+              cityAName={nameA}
+              cityBName={nameB}
+              format="price"
+            />
+            <TrendChart
+              data={charts.populationTrend}
+              title="Population Trend (thousands)"
+              cityAName={nameA}
+              cityBName={nameB}
+              format="population"
+            />
+          </section>
+
+          <Divider />
+
+          <RiskAlerts risks={risks} cityAName={nameA} cityBName={nameB} />
+
+          <Divider />
+
+          <OpportunitySection opportunities={opportunities} cityAName={nameA} cityBName={nameB} />
+
+          <Divider />
+
+          <SourceAttribution sources={sources} />
+
+          <Disclaimer />
         </div>
       </main>
 
-      <footer className="border-t border-border py-8 px-6 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} MetroScore. All rights reserved.
+      <footer className="border-t border-border py-6 px-6 text-center text-xs text-muted-foreground print:hidden">
+        © {new Date().getFullYear()} MetroScore. All rights reserved. ·{" "}
+        <Link href="/compare" className="hover:text-foreground transition-colors">
+          Get a Report
+        </Link>
       </footer>
     </div>
   );
 }
 
-function FullReportContent() {
-  const dimensions = [
-    { label: "Housing Affordability", a: 58, b: 65, description: "Price-to-income ratio, median home prices, market trends" },
-    { label: "Income & Rent", a: 72, b: 68, description: "Median household income, rent burden, wage growth" },
-    { label: "Population Growth", a: 85, b: 80, description: "Annual growth rate, migration, demographic trends" },
-    { label: "Job Market", a: 78, b: 74, description: "Unemployment rate, industry diversity, job growth" },
-    { label: "Climate Risk", a: 55, b: 62, description: "Flood, wildfire, extreme heat risk indicators" },
-    { label: "Quality of Life", a: 70, b: 73, description: "Cost of living, commute times, amenity access" },
-  ];
-
-  return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-xl p-6 text-center">
-          <p className="font-semibold text-foreground mb-1">Austin, TX</p>
-          <div className="text-5xl font-bold text-primary my-3">74</div>
-          <p className="text-xs text-muted-foreground">MetroScore / 100</p>
-        </div>
-        <div className="flex items-center justify-center">
-          <span className="text-2xl font-bold text-muted-foreground">vs</span>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-6 text-center">
-          <p className="font-semibold text-foreground mb-1">Nashville, TN</p>
-          <div className="text-5xl font-bold text-primary my-3">71</div>
-          <p className="text-xs text-muted-foreground">MetroScore / 100</p>
-        </div>
-      </div>
-
-      <div className="bg-card border border-border rounded-xl p-6">
-        <h2 className="font-semibold text-foreground mb-6">Scoring Breakdown</h2>
-        <div className="space-y-5">
-          {dimensions.map((d) => (
-            <div key={d.label}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-sm font-medium text-foreground">{d.label}</span>
-                <div className="flex gap-6 text-sm font-semibold">
-                  <span className="text-primary">AUS {d.a}</span>
-                  <span className="text-muted-foreground">NAS {d.b}</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">{d.description}</p>
-              <div className="flex gap-2 h-2">
-                <div className="flex-1 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full"
-                    style={{ width: `${d.a}%` }}
-                  />
-                </div>
-                <div className="flex-1 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-muted-foreground/40 rounded-full"
-                    style={{ width: `${d.b}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-secondary/40 border border-border rounded-xl p-6">
-        <h2 className="font-semibold text-foreground mb-3">Summary</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          <strong className="text-foreground">Austin, TX</strong> leads with a MetroScore of 74,
-          driven by strong population growth and job market performance. However, housing
-          affordability remains a concern. <strong className="text-foreground">Nashville, TN</strong>{" "}
-          scores 71, with better climate risk scores and competitive housing relative to income.
-          Both cities are strong candidates for relocation or investment.
-        </p>
-      </div>
-    </div>
-  );
+function Divider() {
+  return <hr className="border-border" />;
 }
 
-function AccessDenied() {
+function WinnerBadge({ winner, name }: { winner: string; name: string }) {
+  if (winner === "mixed") {
+    return (
+      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground border border-border">
+        {name}
+      </span>
+    );
+  }
+  const isA = winner === "cityA";
   return (
-    <main className="flex-1 flex items-center justify-center py-24 px-6">
-      <div className="text-center max-w-md">
-        <div className="text-5xl mb-4">🔒</div>
-        <h1 className="text-2xl font-bold text-foreground mb-3">Access Required</h1>
-        <p className="text-muted-foreground mb-6">
-          This report requires a valid access link. Check your email for the report link, or
-          purchase a new report.
-        </p>
-        <Link
-          href="/compare"
-          className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors inline-block"
-        >
-          Get a New Report
-        </Link>
-      </div>
-    </main>
+    <span
+      className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full border ${
+        isA
+          ? "bg-blue-50 text-blue-700 border-blue-200"
+          : "bg-amber-50 text-amber-700 border-amber-200"
+      }`}
+    >
+      ✓ {name}
+    </span>
   );
 }
