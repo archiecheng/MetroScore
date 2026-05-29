@@ -1,0 +1,35 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  city1     String
+  city2     String
+  email     String
+  status    String   @default("pending") // pending | processing | complete | error
+  scores    Json?
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  access ReportAccess[]
+}
+
+model ReportAccess {
+  id        String   @id @default(cuid())
+  token     String   @unique @default(cuid())
+  reportId  String
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  usedAt    DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+}
